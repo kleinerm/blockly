@@ -1,6 +1,7 @@
 /**
  * @license
  * Copyright 2018 Google LLC
+ * Copyright 2022 Mario Kleiner - Hook up matlab generator.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -225,6 +226,9 @@ function packageNode() {
       },{
         name: 'BlocklyLua',
         cjs: './lua',
+      },{
+        name: 'BlocklyMatlab',
+        cjs: './matlab',
       }, {
         name: 'BlocklyDart',
         cjs: './dart',
@@ -295,6 +299,14 @@ function packagePython() {
  */
 function packageLua() {
   return packageGenerator('lua_compressed.js', 'lua.js', 'Lua');
+};
+
+/**
+ * This task wraps matlab_compressed.js into a UMD module.
+ * @example import 'blockly/matlab';
+ */
+function packageMatlab() {
+  return packageGenerator('matlab_compressed.js', 'matlab.js', 'Matlab');
 };
 
 /**
@@ -431,6 +443,7 @@ const package = gulp.series(
         packageJavascript,
         packagePython,
         packageLua,
+        packageMatlab,
         packageDart,
         packagePHP,
         packageLocales,

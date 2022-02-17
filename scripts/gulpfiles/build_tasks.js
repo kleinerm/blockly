@@ -1,6 +1,7 @@
 /**
  * @license
  * Copyright 2018 Google LLC
+ * Copyright 2022 Mario Kleiner - Hook up matlab generator.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -125,6 +126,10 @@ const chunks = [
     name: 'lua',
     entry: 'generators/lua/all.js',
     exports: 'Blockly.Lua',
+  }, {
+    name: 'matlab',
+    entry: 'generators/matlab/all.js',
+    exports: 'Blockly.Matlab',
   }, {
     name: 'dart',
     entry: 'generators/dart/all.js',
@@ -572,6 +577,7 @@ function buildAdvancedCompilationTest() {
  *     python_compressed.js
  *     php_compressed.js
  *     lua_compressed.js
+ *     matlab_compressed.js
  *     dart_compressed.js
  *     blockly_uncompressed.js
  *     msg/json/*.js
