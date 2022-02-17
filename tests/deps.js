@@ -297,6 +297,17 @@ goog.addDependency('../../generators/lua/procedures.js', ['Blockly.Lua.procedure
 goog.addDependency('../../generators/lua/text.js', ['Blockly.Lua.texts'], ['Blockly.Lua', 'Blockly.Names'], {'lang': 'es6', 'module': 'goog'});
 goog.addDependency('../../generators/lua/variables.js', ['Blockly.Lua.variables'], ['Blockly.Lua', 'Blockly.Names'], {'lang': 'es6', 'module': 'goog'});
 goog.addDependency('../../generators/lua/variables_dynamic.js', ['Blockly.Lua.variablesDynamic'], ['Blockly.Lua', 'Blockly.Lua.variables'], {'lang': 'es6', 'module': 'goog'});
+goog.addDependency('../../generators/matlab.js', ['Blockly.Matlab'], ['Blockly.Generator', 'Blockly.Names', 'Blockly.Variables', 'Blockly.inputTypes', 'Blockly.utils.string'], {'lang': 'es6', 'module': 'goog'});
+goog.addDependency('../../generators/matlab/all.js', ['Blockly.Matlab.all'], ['Blockly.Matlab.colour', 'Blockly.Matlab.lists', 'Blockly.Matlab.logic', 'Blockly.Matlab.loops', 'Blockly.Matlab.math', 'Blockly.Matlab.procedures', 'Blockly.Matlab.texts', 'Blockly.Matlab.variables', 'Blockly.Matlab.variablesDynamic'], {'module': 'goog'});
+goog.addDependency('../../generators/matlab/colour.js', ['Blockly.Matlab.colour'], ['Blockly.Matlab'], {'lang': 'es6', 'module': 'goog'});
+goog.addDependency('../../generators/matlab/lists.js', ['Blockly.Matlab.lists'], ['Blockly.Matlab', 'Blockly.Names', 'Blockly.utils.string'], {'lang': 'es6', 'module': 'goog'});
+goog.addDependency('../../generators/matlab/logic.js', ['Blockly.Matlab.logic'], ['Blockly.Matlab'], {'lang': 'es6', 'module': 'goog'});
+goog.addDependency('../../generators/matlab/loops.js', ['Blockly.Matlab.loops'], ['Blockly.Matlab', 'Blockly.Names', 'Blockly.utils.string'], {'lang': 'es6', 'module': 'goog'});
+goog.addDependency('../../generators/matlab/math.js', ['Blockly.Matlab.math'], ['Blockly.Matlab', 'Blockly.Names'], {'lang': 'es6', 'module': 'goog'});
+goog.addDependency('../../generators/matlab/procedures.js', ['Blockly.Matlab.procedures'], ['Blockly.Matlab', 'Blockly.Names', 'Blockly.Variables'], {'lang': 'es6', 'module': 'goog'});
+goog.addDependency('../../generators/matlab/text.js', ['Blockly.Matlab.texts'], ['Blockly.Matlab', 'Blockly.Names', 'Blockly.utils.string'], {'lang': 'es6', 'module': 'goog'});
+goog.addDependency('../../generators/matlab/variables.js', ['Blockly.Matlab.variables'], ['Blockly.Matlab', 'Blockly.Names'], {'lang': 'es6', 'module': 'goog'});
+goog.addDependency('../../generators/matlab/variables_dynamic.js', ['Blockly.Matlab.variablesDynamic'], ['Blockly.Matlab', 'Blockly.Matlab.variables'], {'lang': 'es6', 'module': 'goog'});
 goog.addDependency('../../generators/php.js', ['Blockly.PHP'], ['Blockly.Generator', 'Blockly.Names', 'Blockly.inputTypes', 'Blockly.utils.object', 'Blockly.utils.string'], {'lang': 'es6', 'module': 'goog'});
 goog.addDependency('../../generators/php/all.js', ['Blockly.PHP.all'], ['Blockly.PHP.colour', 'Blockly.PHP.lists', 'Blockly.PHP.logic', 'Blockly.PHP.loops', 'Blockly.PHP.math', 'Blockly.PHP.procedures', 'Blockly.PHP.texts', 'Blockly.PHP.variables', 'Blockly.PHP.variablesDynamic'], {'module': 'goog'});
 goog.addDependency('../../generators/php/colour.js', ['Blockly.PHP.colour'], ['Blockly.PHP'], {'lang': 'es6', 'module': 'goog'});
