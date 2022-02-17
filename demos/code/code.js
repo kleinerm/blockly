@@ -1,6 +1,7 @@
 /**
  * @license
  * Copyright 2012 Google LLC
+ * Copyright 2022 Mario Kleiner - Hook up matlab generator and matlab test tab.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -240,7 +241,7 @@ Code.LANG = Code.getLang();
  * @private
  */
 Code.TABS_ = [
-  'blocks', 'javascript', 'php', 'python', 'dart', 'lua', 'xml', 'json'
+  'blocks', 'javascript', 'php', 'python', 'dart', 'lua', 'xml', 'json', 'matlab'
 ];
 
 /**
@@ -248,7 +249,7 @@ Code.TABS_ = [
  * @private
  */
 Code.TABS_DISPLAY_ = [
-  'Blocks', 'JavaScript', 'PHP', 'Python', 'Dart', 'Lua', 'XML', 'JSON'
+  'Blocks', 'JavaScript', 'PHP', 'Python', 'Dart', 'Lua', 'XML', 'JSON', 'Matlab'
 ];
 
 Code.selected = 'blocks';
@@ -365,6 +366,8 @@ Code.renderContent = function() {
     Code.attemptCodeGeneration(Blockly.Dart);
   } else if (content.id === 'content_lua') {
     Code.attemptCodeGeneration(Blockly.Lua);
+  } else if (content.id === 'content_matlab') {
+    Code.attemptCodeGeneration(Blockly.Matlab);
   }
   if (typeof PR === 'object') {
     PR.prettyPrint();
