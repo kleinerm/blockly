@@ -30,7 +30,7 @@ Matlab['controls_if'] = function(block) {
   }
   do {
     conditionCode =
-        Matlab.valueToCode(block, 'IF' + n, Matlab.ORDER_NONE) || 'False';
+        Matlab.valueToCode(block, 'IF' + n, Matlab.ORDER_NONE) || 'false';
     branchCode = Matlab.statementToCode(block, 'DO' + n) || Matlab.PASS;
     if (Matlab.STATEMENT_SUFFIX) {
       branchCode =
@@ -38,7 +38,7 @@ Matlab['controls_if'] = function(block) {
               Matlab.injectId(Matlab.STATEMENT_SUFFIX, block), Matlab.INDENT) +
           branchCode;
     }
-    code += (n === 0 ? 'if ' : 'elif ') + conditionCode + ':\n' + branchCode;
+    code += (n === 0 ? 'if ' : 'elseif ') + conditionCode + '\n' + branchCode;
     n++;
   } while (block.getInput('IF' + n));
 
@@ -50,8 +50,11 @@ Matlab['controls_if'] = function(block) {
               Matlab.injectId(Matlab.STATEMENT_SUFFIX, block), Matlab.INDENT) +
           branchCode;
     }
-    code += 'else:\n' + branchCode;
+    code += 'else\n' + branchCode;
   }
+
+  code += 'end\n';
+
   return code;
 };
 
@@ -60,7 +63,7 @@ Matlab['controls_ifelse'] = Matlab['controls_if'];
 Matlab['logic_compare'] = function(block) {
   // Comparison operator.
   const OPERATORS =
-      {'EQ': '==', 'NEQ': '!=', 'LT': '<', 'LTE': '<=', 'GT': '>', 'GTE': '>='};
+      {'EQ': '==', 'NEQ': '~=', 'LT': '<', 'LTE': '<=', 'GT': '>', 'GTE': '>='};
   const operator = OPERATORS[block.getFieldValue('OP')];
   const order = Matlab.ORDER_RELATIONAL;
   const argument0 = Matlab.valueToCode(block, 'A', order) || '0';
@@ -71,18 +74,18 @@ Matlab['logic_compare'] = function(block) {
 
 Matlab['logic_operation'] = function(block) {
   // Operations 'and', 'or'.
-  const operator = (block.getFieldValue('OP') === 'AND') ? 'and' : 'or';
+  const operator = (block.getFieldValue('OP') === 'AND') ? '&&' : '||';
   const order =
-      (operator === 'and') ? Matlab.ORDER_LOGICAL_AND : Matlab.ORDER_LOGICAL_OR;
+      (operator === '&&') ? Matlab.ORDER_LOGICAL_AND : Matlab.ORDER_LOGICAL_OR;
   let argument0 = Matlab.valueToCode(block, 'A', order);
   let argument1 = Matlab.valueToCode(block, 'B', order);
   if (!argument0 && !argument1) {
     // If there are no arguments, then the return value is false.
-    argument0 = 'False';
-    argument1 = 'False';
+    argument0 = 'false';
+    argument1 = 'false';
   } else {
     // Single missing arguments have no effect on the return value.
-    const defaultArgument = (operator === 'and') ? 'True' : 'False';
+    const defaultArgument = (operator === '&&') ? 'true' : 'false';
     if (!argument0) {
       argument0 = defaultArgument;
     }
@@ -97,30 +100,34 @@ Matlab['logic_operation'] = function(block) {
 Matlab['logic_negate'] = function(block) {
   // Negation.
   const argument0 =
-      Matlab.valueToCode(block, 'BOOL', Matlab.ORDER_LOGICAL_NOT) || 'True';
-  const code = 'not ' + argument0;
+      Matlab.valueToCode(block, 'BOOL', Matlab.ORDER_LOGICAL_NOT) || 'true';
+  const code = '~' + argument0;
   return [code, Matlab.ORDER_LOGICAL_NOT];
 };
 
 Matlab['logic_boolean'] = function(block) {
   // Boolean values true and false.
-  const code = (block.getFieldValue('BOOL') === 'TRUE') ? 'True' : 'False';
+  const code = (block.getFieldValue('BOOL') === 'TRUE') ? 'true' : 'false';
   return [code, Matlab.ORDER_ATOMIC];
 };
 
 Matlab['logic_null'] = function(block) {
   // Null data type.
-  return ['None', Matlab.ORDER_ATOMIC];
+  return ['[]', Matlab.ORDER_ATOMIC];
 };
 
 Matlab['logic_ternary'] = function(block) {
   // Ternary operator.
   const value_if =
-      Matlab.valueToCode(block, 'IF', Matlab.ORDER_CONDITIONAL) || 'False';
+      Matlab.valueToCode(block, 'IF', Matlab.ORDER_CONDITIONAL) || 'false';
   const value_then =
-      Matlab.valueToCode(block, 'THEN', Matlab.ORDER_CONDITIONAL) || 'None';
+      Matlab.valueToCode(block, 'THEN', Matlab.ORDER_CONDITIONAL) || '[]';
   const value_else =
-      Matlab.valueToCode(block, 'ELSE', Matlab.ORDER_CONDITIONAL) || 'None';
-  const code = value_then + ' if ' + value_if + ' else ' + value_else;
+      Matlab.valueToCode(block, 'ELSE', Matlab.ORDER_CONDITIONAL) || '[]';
+
+  const functionName = Matlab.provideFunction_('ternarySubstituteOperator', [
+        'function ret = ' + Matlab.FUNCTION_NAME_PLACEHOLDER_ + '(varargin) ret = varargin{length(varargin)-varargin{1}}; end;']);
+
+  const code = functionName + '(' + value_if + ', ' + value_then + ', ' + value_else + ')';
   return [code, Matlab.ORDER_CONDITIONAL];
 };

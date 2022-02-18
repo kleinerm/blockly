@@ -42,9 +42,7 @@ Matlab['procedures_defreturn'] = function(block) {
         Matlab.nameDB_.getName(devVarList[i], NameType.DEVELOPER_VARIABLE));
   }
 
-  const globalString = globals.length ?
-      Matlab.INDENT + 'global ' + globals.join(', ') + '\n' :
-      '';
+  const globalString = ''; // Do not define globals: globals.length ? Matlab.INDENT + 'global ' + globals.join(', ') + '\n' : '';
   const funcName =
       Matlab.nameDB_.getName(block.getFieldValue('NAME'), NameType.PROCEDURE);
   let xfix1 = '';
@@ -70,9 +68,7 @@ Matlab['procedures_defreturn'] = function(block) {
     // After executing the function body, revisit this block for the return.
     xfix2 = xfix1;
   }
-  if (returnValue) {
-    returnValue = Matlab.INDENT + 'return ' + returnValue + '\n';
-  } else if (!branch) {
+  if (!returnValue && !branch) {
     branch = Matlab.PASS;
   }
   const args = [];
@@ -80,8 +76,15 @@ Matlab['procedures_defreturn'] = function(block) {
   for (let i = 0; i < variables.length; i++) {
     args[i] = Matlab.nameDB_.getName(variables[i], NameType.VARIABLE);
   }
-  let code = 'def ' + funcName + '(' + args.join(', ') + '):\n' + globalString +
-      xfix1 + loopTrap + branch + xfix2 + returnValue;
+  if (returnValue) {
+    code = 'function varargout = ' + funcName + '(' + args.join(', ') + ')\n' + globalString +
+        xfix1 + loopTrap + branch + xfix2 + Matlab.INDENT + 'varargout{1} = ' + returnValue + ';\nend\n';
+  }
+  else {
+    code = 'function ' + funcName + '(' + args.join(', ') + ')\n' + globalString +
+        xfix1 + loopTrap + branch + xfix2 + 'end\n';
+  }
+
   code = Matlab.scrub_(block, code);
   // Add % so as not to collide with helper functions in definitions list.
   Matlab.definitions_['%' + funcName] = code;
@@ -99,7 +102,7 @@ Matlab['procedures_callreturn'] = function(block) {
   const args = [];
   const variables = block.getVars();
   for (let i = 0; i < variables.length; i++) {
-    args[i] = Matlab.valueToCode(block, 'ARG' + i, Matlab.ORDER_NONE) || 'None';
+    args[i] = Matlab.valueToCode(block, 'ARG' + i, Matlab.ORDER_NONE) || '[]';
   }
   const code = funcName + '(' + args.join(', ') + ')';
   return [code, Matlab.ORDER_FUNCTION_CALL];
@@ -110,14 +113,14 @@ Matlab['procedures_callnoreturn'] = function(block) {
   // Generated code is for a function call as a statement is the same as a
   // function call as a value, with the addition of line ending.
   const tuple = Matlab['procedures_callreturn'](block);
-  return tuple[0] + '\n';
+  return tuple[0] + ';\n';
 };
 
 Matlab['procedures_ifreturn'] = function(block) {
   // Conditionally return value from a procedure.
   const condition =
-      Matlab.valueToCode(block, 'CONDITION', Matlab.ORDER_NONE) || 'False';
-  let code = 'if ' + condition + ':\n';
+      Matlab.valueToCode(block, 'CONDITION', Matlab.ORDER_NONE) || 'false';
+  let code = 'if ' + condition + '\n';
   if (Matlab.STATEMENT_SUFFIX) {
     // Inject any statement suffix here since the regular one at the end
     // will not get executed if the return is triggered.
@@ -126,10 +129,10 @@ Matlab['procedures_ifreturn'] = function(block) {
   }
   if (block.hasReturnValue_) {
     const value =
-        Matlab.valueToCode(block, 'VALUE', Matlab.ORDER_NONE) || 'None';
-    code += Matlab.INDENT + 'return ' + value + '\n';
+        Matlab.valueToCode(block, 'VALUE', Matlab.ORDER_NONE) || '[]';
+    code += Matlab.INDENT + 'varargout{1} = ' + value + ';\n' + Matlab.INDENT + 'return;\nend\n';
   } else {
-    code += Matlab.INDENT + 'return\n';
+    code += Matlab.INDENT + 'return;\nend\n';
   }
   return code;
 };

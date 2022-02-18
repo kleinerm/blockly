@@ -42,7 +42,7 @@ Matlab['text_multiline'] = function(block) {
 const strRegExp = /^\s*'([^']|\\')*'\s*$/;
 
 /**
- * Enclose the provided value in 'str(...)' function.
+ * Enclose the provided value in 'char(...)' function.
  * Leave string literals alone.
  * @param {string} value Code evaluating to a value.
  * @return {Array<string|number>} Array containing code evaluating to a string
@@ -53,12 +53,12 @@ const forceString = function(value) {
   if (strRegExp.test(value)) {
     return [value, Matlab.ORDER_ATOMIC];
   }
-  return ['str(' + value + ')', Matlab.ORDER_FUNCTION_CALL];
+  return ['char(' + value + ')', Matlab.ORDER_FUNCTION_CALL];
 };
 
 Matlab['text_join'] = function(block) {
   // Create a string made up of any number of elements of any type.
-  // Should we allow joining by '-' or ',' or any other characters?
+  // Should we allow joining by '-' or ',' or any other characters? TODO
   switch (block.itemCount_) {
     case 0:
       return ['\'\'', Matlab.ORDER_ATOMIC];
@@ -73,7 +73,7 @@ Matlab['text_join'] = function(block) {
           Matlab.valueToCode(block, 'ADD0', Matlab.ORDER_NONE) || '\'\'';
       const element1 =
           Matlab.valueToCode(block, 'ADD1', Matlab.ORDER_NONE) || '\'\'';
-      const code = forceString(element0)[0] + ' + ' + forceString(element1)[0];
+      const code = '[ ' + forceString(element0)[0] + ' , ' + forceString(element1)[0] + ' ]';
       return [code, Matlab.ORDER_ADDITIVE];
     }
     default: {
@@ -83,8 +83,7 @@ Matlab['text_join'] = function(block) {
             Matlab.valueToCode(block, 'ADD' + i, Matlab.ORDER_NONE) || '\'\'';
       }
       const tempVar = Matlab.nameDB_.getDistinctName('x', NameType.VARIABLE);
-      const code = '\'\'.join([str(' + tempVar + ') for ' + tempVar + ' in [' +
-          elements.join(', ') + ']])';
+      const code = '[' + elements.join(', ') + ']';
       return [code, Matlab.ORDER_FUNCTION_CALL];
     }
   }
@@ -95,34 +94,34 @@ Matlab['text_append'] = function(block) {
   const varName =
       Matlab.nameDB_.getName(block.getFieldValue('VAR'), NameType.VARIABLE);
   const value = Matlab.valueToCode(block, 'TEXT', Matlab.ORDER_NONE) || '\'\'';
-  return varName + ' = str(' + varName + ') + ' + forceString(value)[0] + '\n';
+  return varName + ' = [char(' + varName + ') , ' + forceString(value)[0] + '];\n';
 };
 
 Matlab['text_length'] = function(block) {
   // Is the string null or array empty?
   const text = Matlab.valueToCode(block, 'VALUE', Matlab.ORDER_NONE) || '\'\'';
-  return ['len(' + text + ')', Matlab.ORDER_FUNCTION_CALL];
+  return ['length(' + text + ')', Matlab.ORDER_FUNCTION_CALL];
 };
 
 Matlab['text_isEmpty'] = function(block) {
   // Is the string null or array empty?
   const text = Matlab.valueToCode(block, 'VALUE', Matlab.ORDER_NONE) || '\'\'';
-  const code = 'not len(' + text + ')';
+  const code = 'isempty(' + text + ')';
   return [code, Matlab.ORDER_LOGICAL_NOT];
 };
 
 Matlab['text_indexOf'] = function(block) {
   // Search the text for a substring.
   // Should we allow for non-case sensitive???
-  const operator = block.getFieldValue('END') === 'FIRST' ? 'find' : 'rfind';
+  const operator = block.getFieldValue('END') === 'FIRST' ? 'min' : 'max';
   const substring =
       Matlab.valueToCode(block, 'FIND', Matlab.ORDER_NONE) || '\'\'';
   const text =
       Matlab.valueToCode(block, 'VALUE', Matlab.ORDER_MEMBER) || '\'\'';
-  const code = text + '.' + operator + '(' + substring + ')';
-  if (block.workspace.options.oneBasedIndex) {
-    return [code + ' + 1', Matlab.ORDER_ADDITIVE];
-  }
+  const code = operator + '(strfind(' + text + ', ' + substring + ', \'overlaps\', false))';
+  //if (block.workspace.options.oneBasedIndex) {
+  //  return [code + ' + 1', Matlab.ORDER_ADDITIVE];
+  //}
   return [code, Matlab.ORDER_FUNCTION_CALL];
 };
 
@@ -135,30 +134,35 @@ Matlab['text_charAt'] = function(block) {
   const text = Matlab.valueToCode(block, 'VALUE', textOrder) || '\'\'';
   switch (where) {
     case 'FIRST': {
-      const code = text + '[0]';
+      const code = text + '(1)';
       return [code, Matlab.ORDER_MEMBER];
     }
     case 'LAST': {
-      const code = text + '[-1]';
+      const code = text + '(end)';
       return [code, Matlab.ORDER_MEMBER];
     }
     case 'FROM_START': {
-      const at = Matlab.getAdjustedInt(block, 'AT');
-      const code = text + '[' + at + ']';
+      const at = Matlab.getAdjustedInt(block, 'AT', 1);
+      const code = text + '(' + at + ')';
       return [code, Matlab.ORDER_MEMBER];
     }
     case 'FROM_END': {
-      const at = Matlab.getAdjustedInt(block, 'AT', 1, true);
-      const code = text + '[' + at + ']';
+      let at = Matlab.getAdjustedInt(block, 'AT', 0, true);
+      // Ensure that if the result calculated is 0 that sub-sequence will
+      // include all elements as expected.
+      if (!stringUtils.isNumber(String(at))) {
+        at += 'end';
+      } else if (at === 0) {
+        at = 'end';
+      }
+      else {
+        at = 'end' + at;
+      }
+      const code = text + '(' + at + ')';
       return [code, Matlab.ORDER_MEMBER];
     }
     case 'RANDOM': {
-      Matlab.definitions_['import_random'] = 'import random';
-      const functionName = Matlab.provideFunction_('text_random_letter', [
-        'def ' + Matlab.FUNCTION_NAME_PLACEHOLDER_ + '(text):',
-        '  x = int(random.random() * len(text))', '  return text[x];'
-      ]);
-      const code = functionName + '(' + text + ')';
+      const code = text + '(randi(length(' + text + ')))';
       return [code, Matlab.ORDER_FUNCTION_CALL];
     }
   }
@@ -174,16 +178,26 @@ Matlab['text_getSubstring'] = function(block) {
   let at1;
   switch (where1) {
     case 'FROM_START':
-      at1 = Matlab.getAdjustedInt(block, 'AT1');
+      at1 = Matlab.getAdjustedInt(block, 'AT1', 1);
       if (at1 === 0) {
-        at1 = '';
+        at1 = '1';
       }
       break;
     case 'FROM_END':
-      at1 = Matlab.getAdjustedInt(block, 'AT1', 1, true);
+      at1 = Matlab.getAdjustedInt(block, 'AT1', 0, true);
+      // Ensure that if the result calculated is 0 that sub-sequence will
+      // include all elements as expected.
+      if (!stringUtils.isNumber(String(at1))) {
+        at1 += 'end';
+      } else if (at1 === 0) {
+        at1 = 'end';
+      }
+      else {
+        at1 = 'end' + at1;
+      }
       break;
     case 'FIRST':
-      at1 = '';
+      at1 = '1';
       break;
     default:
       throw Error('Unhandled option (text_getSubstring)');
@@ -193,66 +207,83 @@ Matlab['text_getSubstring'] = function(block) {
   switch (where2) {
     case 'FROM_START':
       at2 = Matlab.getAdjustedInt(block, 'AT2', 1);
+      if (at2 === 0) {
+        at2 = '1';
+      }
       break;
     case 'FROM_END':
       at2 = Matlab.getAdjustedInt(block, 'AT2', 0, true);
       // Ensure that if the result calculated is 0 that sub-sequence will
       // include all elements as expected.
       if (!stringUtils.isNumber(String(at2))) {
-        Matlab.definitions_['import_sys'] = 'import sys';
-        at2 += ' or sys.maxsize';
+        at2 += 'end';
       } else if (at2 === 0) {
-        at2 = '';
+        at2 = 'end';
+      }
+      else {
+        at2 = 'end' + at2;
       }
       break;
     case 'LAST':
-      at2 = '';
+      at2 = 'end';
       break;
     default:
       throw Error('Unhandled option (text_getSubstring)');
   }
-  const code = text + '[' + at1 + ' : ' + at2 + ']';
+  const code = text + '(' + at1 + ':' + at2 + ')';
   return [code, Matlab.ORDER_MEMBER];
 };
 
 Matlab['text_changeCase'] = function(block) {
   // Change capitalization.
   const OPERATORS = {
-    'UPPERCASE': '.upper()',
-    'LOWERCASE': '.lower()',
-    'TITLECASE': '.title()'
+    'UPPERCASE': 'upper(',
+    'LOWERCASE': 'lower(',
+    'TITLECASE': 'totitlecase('
   };
   const operator = OPERATORS[block.getFieldValue('CASE')];
+
+  if (block.getFieldValue('CASE') === 'TITLECASE') {
+    const functionName = Matlab.provideFunction_('totitlecase', [
+        'function outtext = ' + Matlab.FUNCTION_NAME_PLACEHOLDER_ + '(intext)\n' +
+        Matlab.INDENT + 'doit = logical([1 isspace(intext)(1:end-1)]);\n' +
+        Matlab.INDENT + 'outtext = lower(intext); outtext(doit) = upper(intext(doit));\n' +
+        'end']);
+  }
+
   const text = Matlab.valueToCode(block, 'TEXT', Matlab.ORDER_MEMBER) || '\'\'';
-  const code = text + operator;
+  const code = operator + text + ')';
   return [code, Matlab.ORDER_FUNCTION_CALL];
 };
 
 Matlab['text_trim'] = function(block) {
   // Trim spaces.
   const OPERATORS = {
-    'LEFT': '.lstrip()',
-    'RIGHT': '.rstrip()',
-    'BOTH': '.strip()'
+    'LEFT': 'lstrip(',
+    'RIGHT': 'deblank(',
+    'BOTH': 'strtrim('
   };
   const operator = OPERATORS[block.getFieldValue('MODE')];
   const text = Matlab.valueToCode(block, 'TEXT', Matlab.ORDER_MEMBER) || '\'\'';
-  const code = text + operator;
+  if (block.getFieldValue('MODE') === 'LEFT') {
+    const functionName = Matlab.provideFunction_('lstrip', [
+        'function outtext = ' + Matlab.FUNCTION_NAME_PLACEHOLDER_ + '(intext)\n' +
+        Matlab.INDENT + 'outtext = intext(min(find(~isspace(intext))):end);\n' +
+        'end']);
+  }
+
+  const code = operator + text + ')';
   return [code, Matlab.ORDER_FUNCTION_CALL];
 };
 
 Matlab['text_print'] = function(block) {
   // Print statement.
   const msg = Matlab.valueToCode(block, 'TEXT', Matlab.ORDER_NONE) || '\'\'';
-  return 'print(' + msg + ')\n';
+  return 'disp(' + msg + ');\n';
 };
 
 Matlab['text_prompt_ext'] = function(block) {
   // Prompt function.
-  const functionName = Matlab.provideFunction_('text_prompt', [
-    'def ' + Matlab.FUNCTION_NAME_PLACEHOLDER_ + '(msg):', '  try:',
-    '    return raw_input(msg)', '  except NameError:', '    return input(msg)'
-  ]);
   let msg;
   if (block.getField('TEXT')) {
     // Internal message.
@@ -261,10 +292,11 @@ Matlab['text_prompt_ext'] = function(block) {
     // External message.
     msg = Matlab.valueToCode(block, 'TEXT', Matlab.ORDER_NONE) || '\'\'';
   }
-  let code = functionName + '(' + msg + ')';
+
+  let code = 'input(' + msg + ', \'s\')';
   const toNumber = block.getFieldValue('TYPE') === 'NUMBER';
   if (toNumber) {
-    code = 'float(' + code + ')';
+    code = 'str2num(' + code + ')';
   }
   return [code, Matlab.ORDER_FUNCTION_CALL];
 };
@@ -274,7 +306,7 @@ Matlab['text_prompt'] = Matlab['text_prompt_ext'];
 Matlab['text_count'] = function(block) {
   const text = Matlab.valueToCode(block, 'TEXT', Matlab.ORDER_MEMBER) || '\'\'';
   const sub = Matlab.valueToCode(block, 'SUB', Matlab.ORDER_NONE) || '\'\'';
-  const code = text + '.count(' + sub + ')';
+  const code = 'length(strfind(' + text + ', ' + sub + ')';
   return [code, Matlab.ORDER_FUNCTION_CALL];
 };
 
@@ -282,12 +314,12 @@ Matlab['text_replace'] = function(block) {
   const text = Matlab.valueToCode(block, 'TEXT', Matlab.ORDER_MEMBER) || '\'\'';
   const from = Matlab.valueToCode(block, 'FROM', Matlab.ORDER_NONE) || '\'\'';
   const to = Matlab.valueToCode(block, 'TO', Matlab.ORDER_NONE) || '\'\'';
-  const code = text + '.replace(' + from + ', ' + to + ')';
+  const code = 'strrep(' + text + ', ' + from + ', ' + to + ', \'overlaps\', false)';
   return [code, Matlab.ORDER_MEMBER];
 };
 
 Matlab['text_reverse'] = function(block) {
   const text = Matlab.valueToCode(block, 'TEXT', Matlab.ORDER_MEMBER) || '\'\'';
-  const code = text + '[::-1]';
+  const code = text + '(end:-1:1)';
   return [code, Matlab.ORDER_MEMBER];
 };

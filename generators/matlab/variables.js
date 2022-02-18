@@ -34,5 +34,5 @@ Matlab['variables_set'] = function(block) {
       Matlab.valueToCode(block, 'VALUE', Matlab.ORDER_NONE) || '0';
   const varName =
       Matlab.nameDB_.getName(block.getFieldValue('VAR'), NameType.VARIABLE);
-  return varName + ' = ' + argument0 + '\n';
+  return varName + ' = ' + argument0 + ';\n';
 };

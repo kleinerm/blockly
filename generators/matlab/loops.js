@@ -5,7 +5,9 @@
  * Copyright 2022 Mario Kleiner - Derived from/starting as an identical copy of
  * the corresponding Python generator files at 17th February 2022, with all "Python"
  * words replaced with "Matlab", and then piece-by-piece rewritten to become a
- * Matlab code generator in followup commits.
+ * Matlab code generator in followup commits. Some routines (e.g., "controls_for"
+ * used transplanted code from the corresponding generators/lua/loops.js generator
+ * as a starting point.
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -35,12 +37,12 @@ Matlab['controls_repeat_ext'] = function(block) {
   if (stringUtils.isNumber(repeats)) {
     repeats = parseInt(repeats, 10);
   } else {
-    repeats = 'int(' + repeats + ')';
+    repeats = 'int64(' + repeats + ')';
   }
   let branch = Matlab.statementToCode(block, 'DO');
   branch = Matlab.addLoopTrap(branch, block) || Matlab.PASS;
   const loopVar = Matlab.nameDB_.getDistinctName('count', NameType.VARIABLE);
-  const code = 'for ' + loopVar + ' in range(' + repeats + '):\n' + branch;
+  const code = 'for ' + loopVar + '=1:' + repeats + '\n' + branch + 'end\n';
   return code;
 };
 
@@ -56,115 +58,53 @@ Matlab['controls_whileUntil'] = function(block) {
   let branch = Matlab.statementToCode(block, 'DO');
   branch = Matlab.addLoopTrap(branch, block) || Matlab.PASS;
   if (until) {
-    argument0 = 'not ' + argument0;
+    return 'while ~(' + argument0 + ')\n' + branch + 'end\n';
   }
-  return 'while ' + argument0 + ':\n' + branch;
+  else {
+    return 'while ' + argument0 + '\n' + branch + 'end\n';
+  }
 };
 
 Matlab['controls_for'] = function(block) {
   // For loop.
   const variable0 =
       Matlab.nameDB_.getName(block.getFieldValue('VAR'), NameType.VARIABLE);
-  let argument0 = Matlab.valueToCode(block, 'FROM', Matlab.ORDER_NONE) || '0';
-  let argument1 = Matlab.valueToCode(block, 'TO', Matlab.ORDER_NONE) || '0';
-  let increment = Matlab.valueToCode(block, 'BY', Matlab.ORDER_NONE) || '1';
+  const startVar = Matlab.valueToCode(block, 'FROM', Matlab.ORDER_NONE) || '0';
+  const endVar = Matlab.valueToCode(block, 'TO', Matlab.ORDER_NONE) || '0';
+  const increment = Matlab.valueToCode(block, 'BY', Matlab.ORDER_NONE) || '1';
   let branch = Matlab.statementToCode(block, 'DO');
-  branch = Matlab.addLoopTrap(branch, block) || Matlab.PASS;
+  branch = Matlab.addLoopTrap(branch, block);
+  //branch = addContinueLabel(branch);
 
   let code = '';
-  let range;
+  let incValue;
 
-  // Helper functions.
-  const defineUpRange = function() {
-    return Matlab.provideFunction_('upRange', [
-      'def ' + Matlab.FUNCTION_NAME_PLACEHOLDER_ + '(start, stop, step):',
-      '  while start <= stop:', '    yield start', '    start += abs(step)'
-    ]);
-  };
-  const defineDownRange = function() {
-    return Matlab.provideFunction_('downRange', [
-      'def ' + Matlab.FUNCTION_NAME_PLACEHOLDER_ + '(start, stop, step):',
-      '  while start >= stop:', '    yield start', '    start -= abs(step)'
-    ]);
-  };
-  // Arguments are legal Matlab code (numbers or strings returned by scrub()).
-  const generateUpDownRange = function(start, end, inc) {
-    return '(' + start + ' <= ' + end + ') and ' + defineUpRange() + '(' +
-        start + ', ' + end + ', ' + inc + ') or ' + defineDownRange() + '(' +
-        start + ', ' + end + ', ' + inc + ')';
-  };
-
-  if (stringUtils.isNumber(argument0) && stringUtils.isNumber(argument1) &&
+  if (stringUtils.isNumber(startVar) && stringUtils.isNumber(endVar) &&
       stringUtils.isNumber(increment)) {
-    // All parameters are simple numbers.
-    argument0 = Number(argument0);
-    argument1 = Number(argument1);
-    increment = Math.abs(Number(increment));
-    if (argument0 % 1 === 0 && argument1 % 1 === 0 && increment % 1 === 0) {
-      // All parameters are integers.
-      if (argument0 <= argument1) {
-        // Count up.
-        argument1++;
-        if (argument0 === 0 && increment === 1) {
-          // If starting index is 0, omit it.
-          range = argument1;
-        } else {
-          range = argument0 + ', ' + argument1;
-        }
-        // If increment isn't 1, it must be explicit.
-        if (increment !== 1) {
-          range += ', ' + increment;
-        }
-      } else {
-        // Count down.
-        argument1--;
-        range = argument0 + ', ' + argument1 + ', -' + increment;
-      }
-      range = 'range(' + range + ')';
-    } else {
-      // At least one of the parameters is not an integer.
-      if (argument0 < argument1) {
-        range = defineUpRange();
-      } else {
-        range = defineDownRange();
-      }
-      range += '(' + argument0 + ', ' + argument1 + ', ' + increment + ')';
-    }
+    // All arguments are simple numbers.
+    const up = Number(startVar) <= Number(endVar);
+    const step = Math.abs(Number(increment));
+    incValue = (up ? '' : '-') + step;
   } else {
-    // Cache non-trivial values to variables to prevent repeated look-ups.
-    const scrub = function(arg, suffix) {
-      if (stringUtils.isNumber(arg)) {
-        // Simple number.
-        arg = Number(arg);
-      } else if (arg.match(/^\w+$/)) {
-        // Variable.
-        arg = 'float(' + arg + ')';
-      } else {
-        // It's complicated.
-        const varName = Matlab.nameDB_.getDistinctName(
-            variable0 + suffix, NameType.VARIABLE);
-        code += varName + ' = float(' + arg + ')\n';
-        arg = varName;
-      }
-      return arg;
-    };
-    const startVar = scrub(argument0, '_start');
-    const endVar = scrub(argument1, '_end');
-    const incVar = scrub(increment, '_inc');
-
-    if (typeof startVar === 'number' && typeof endVar === 'number') {
-      if (startVar < endVar) {
-        range = defineUpRange();
-      } else {
-        range = defineDownRange();
-      }
-      range += '(' + startVar + ', ' + endVar + ', ' + incVar + ')';
+    // TODO NEEDED? TEST FIX?
+    code = '';
+    // Determine loop direction at start, in case one of the bounds
+    // changes during loop execution.
+    incValue =
+        Matlab.nameDB_.getDistinctName(variable0 + '_inc', NameType.VARIABLE);
+    code += incValue + ' = ';
+    if (stringUtils.isNumber(increment)) {
+      code += Math.abs(increment) + '\n';
     } else {
-      // We cannot determine direction statically.
-      range = generateUpDownRange(startVar, endVar, incVar);
+      code += 'math.abs(' + increment + ')\n';
     }
+    code += 'if (' + startVar + ') > (' + endVar + ')\n';
+    code += Matlab.INDENT + incValue + ' = -' + incValue + '\n';
+    code += 'end\n';
   }
-  code += 'for ' + variable0 + ' in ' + range + ':\n' + branch;
+  code += 'for ' + variable0 + ' = ' + startVar + ':' + incValue + ':' + endVar;
+  code += '\n' + branch + 'end\n';
+
   return code;
 };
 
@@ -176,7 +116,8 @@ Matlab['controls_forEach'] = function(block) {
       Matlab.valueToCode(block, 'LIST', Matlab.ORDER_RELATIONAL) || '[]';
   let branch = Matlab.statementToCode(block, 'DO');
   branch = Matlab.addLoopTrap(branch, block) || Matlab.PASS;
-  const code = 'for ' + variable0 + ' in ' + argument0 + ':\n' + branch;
+  // TODO TEST FIX
+  const code = 'for ' + variable0 + ' = ' + argument0 + '\n' + branch + 'end\n';
   return code;
 };
 

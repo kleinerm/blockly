@@ -45,9 +45,9 @@ Matlab.addReservedWords(
     // print(','.join(sorted(keyword.kwlist)))
     // https://docs.python.org/3/reference/lexical_analysis.html#keywords
     // https://docs.python.org/2/reference/lexical_analysis.html#keywords
-    'False,None,True,and,as,assert,break,class,continue,def,del,elif,else,' +
-    'except,exec,finally,for,from,global,if,import,in,is,lambda,nonlocal,not,' +
-    'or,pass,print,raise,return,try,while,with,yield,' +
+    'false,true,and,assert,break,class,classdef,continue,else,' +
+    'catch,exec,finally,for,from,global,persistent,if,in,is,lambda,nonlocal,not,' +
+    'or,pass,print,raise,return,try,catch,while,with,yield,' +
     // https://docs.python.org/3/library/constants.html
     // https://docs.python.org/2/library/constants.html
     'NotImplemented,Ellipsis,__debug__,quit,exit,copyright,license,credits,' +
@@ -90,7 +90,7 @@ Matlab.ORDER_COLLECTION = 1;         // tuples, lists, dictionaries
 Matlab.ORDER_STRING_CONVERSION = 1;  // `expression...`
 Matlab.ORDER_MEMBER = 2.1;           // . []
 Matlab.ORDER_FUNCTION_CALL = 2.2;    // ()
-Matlab.ORDER_EXPONENTIATION = 3;     // **
+Matlab.ORDER_EXPONENTIATION = 3;     // ^
 Matlab.ORDER_UNARY_SIGN = 4;         // + -
 Matlab.ORDER_BITWISE_NOT = 4;        // ~
 Matlab.ORDER_MULTIPLICATIVE = 5;     // * / // %
@@ -103,7 +103,7 @@ Matlab.ORDER_RELATIONAL = 11;        // in, not in, is, is not,
                                      //     <, <=, >, >=, <>, !=, ==
 Matlab.ORDER_LOGICAL_NOT = 12;       // not
 Matlab.ORDER_LOGICAL_AND = 13;       // and
-Matlab.ORDER_LOGICAL_OR = 14;        // or
+Matlab.ORDER_LOGICAL_OR = 14;        // or TODO xor et al.
 Matlab.ORDER_CONDITIONAL = 15;       // if else
 Matlab.ORDER_LAMBDA = 16;            // lambda
 Matlab.ORDER_NONE = 99;              // (...)
@@ -153,7 +153,7 @@ Matlab.init = function(workspace) {
   /**
    * Empty loops or conditionals are not allowed in Matlab.
    */
-  this.PASS = this.INDENT + 'pass\n';
+  this.PASS = this.INDENT + 'return;\n';
 
   if (!this.nameDB_) {
     this.nameDB_ = new Names(this.RESERVED_WORDS_);
@@ -171,7 +171,7 @@ Matlab.init = function(workspace) {
   for (let i = 0; i < devVarList.length; i++) {
     defvars.push(
         this.nameDB_.getName(devVarList[i], Names.DEVELOPER_VARIABLE_TYPE) +
-        ' = None');
+        ' = [];');
   }
 
   // Add user variables, but only ones that are being used.
@@ -179,10 +179,10 @@ Matlab.init = function(workspace) {
   for (let i = 0; i < variables.length; i++) {
     defvars.push(
         this.nameDB_.getName(variables[i].getId(), NameType.VARIABLE) +
-        ' = None');
+        ' = [];');
   }
 
-  this.definitions_['variables'] = defvars.join('\n');
+  // Don't add empty variable definitions: this.definitions_['variables'] = defvars.join('\n');
   this.isInitialized = true;
 };
 
@@ -208,8 +208,13 @@ Matlab.finish = function(code) {
   this.isInitialized = false;
 
   this.nameDB_.reset();
-  const allDefs = imports.join('\n') + '\n\n' + definitions.join('\n\n');
-  return allDefs.replace(/\n\n+/g, '\n\n').replace(/\n*$/, '\n\n\n') + code;
+  let allImps = imports.join('\n') + '\n';
+  let allDefs = '\n' + definitions.join('\n\n');
+  allImps = allImps.replace(/\n\n+/g, '\n\n').replace(/\n*$/, '\n\n\n');
+  allDefs = allDefs.replace(/\n\n+/g, '\n\n').replace(/\n*$/, '\n\n\n');
+
+  code = 'function main\n' + allImps + code + allDefs + 'end\n';
+  return code;
 };
 
 /**
@@ -276,7 +281,7 @@ Matlab.scrub_ = function(block, code, opt_thisOnly) {
     let comment = block.getCommentText();
     if (comment) {
       comment = stringUtils.wrap(comment, this.COMMENT_WRAP - 3);
-      commentCode += this.prefixLines(comment + '\n', '# ');
+      commentCode += this.prefixLines(comment + '\n', '% ');
     }
     // Collect comments for all value arguments.
     // Don't collect comments for nested statements.
@@ -286,7 +291,7 @@ Matlab.scrub_ = function(block, code, opt_thisOnly) {
         if (childBlock) {
           comment = this.allNestedComments(childBlock);
           if (comment) {
-            commentCode += this.prefixLines(comment, '# ');
+            commentCode += this.prefixLines(comment, '% ');
           }
         }
       }
@@ -324,11 +329,11 @@ Matlab.getAdjustedInt = function(block, atId, opt_delta, opt_negate) {
   } else {
     // If the index is dynamic, adjust it in code.
     if (delta > 0) {
-      at = 'int(' + at + ' + ' + delta + ')';
+      at = 'int64(' + at + ' + ' + delta + ')';
     } else if (delta < 0) {
-      at = 'int(' + at + ' - ' + -delta + ')';
+      at = 'int64(' + at + ' - ' + -delta + ')';
     } else {
-      at = 'int(' + at + ')';
+      at = 'int64(' + at + ')';
     }
     if (opt_negate) {
       at = '-' + at;
