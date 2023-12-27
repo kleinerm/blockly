@@ -58,7 +58,7 @@ FactoryUtils.cleanBlockType = function(blockType) {
  * Get the generator code for a given block.
  * @param {!Blockly.Block} block Rendered block in preview workspace.
  * @param {string} generatorLanguage 'JavaScript', 'Python', 'PHP', 'Lua',
- *     or 'Dart'.
+ *     'Matlab', or 'Dart'.
  * @return {string} Generator code for multiple blocks.
  */
 FactoryUtils.getGeneratorStub = function(block, generatorLanguage) {
@@ -138,6 +138,7 @@ FactoryUtils.getGeneratorStub = function(block, generatorLanguage) {
     'Python': '',
     'PHP': ';',
     'Lua': '',
+    'Matlab': ';',
     'Dart': ';'
   };
   code.push("  // TODO: Assemble " + language + " into code variable.");
